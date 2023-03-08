@@ -22,3 +22,5 @@ class Solution:
 
         # WARNING: DO NOT MODIFY THE LINE BELOW, OR BAD THINGS WILL HAPPEN
         return (paths, bandwidths, priorities)
+
+# epic test o.O
