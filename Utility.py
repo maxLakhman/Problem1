@@ -7,7 +7,6 @@ class Utility:
 
     def __init__(self, problem):
         self.problem = problem
-        pass
 
     def read_file(self, input_file):
         isp = 0
