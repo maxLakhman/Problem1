@@ -71,9 +71,5 @@ class Solution:
             if(numpaths == len(list_clients)):
                 allpathsfound = True
             else:
-                priors = [-1]*graph_size
-                for node in paths:
-                    i = 0
-                    while(i < len(paths[node]):
-                          
+                priors = [-1]*graph_size           
         return (paths, bandwidths, priorities)
