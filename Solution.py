@@ -3,6 +3,7 @@ import heapq
 from collections import deque
 from Simulator import Simulator
 import sys
+import math
 
 class Solution:
 
@@ -50,7 +51,6 @@ class Solution:
                     priors[neighbor] = node
                     search_queue.append(neighbor)
         #Calculate paths
-        pathsthatusenode = {node: list() for node in graph.keys()}
         for client in list_clients:
             path = []
             current_node = client
@@ -58,45 +58,20 @@ class Solution:
                 path.append(current_node)
                 if(current_node != client):
                     bandwidthused[current_node] += 1
-                    pathsthatusenode[current_node].append(client)
                 current_node = priors[current_node]
             path = path[::-1]
             paths[client] = path
-        #Figure out delay for each client
-        complaintlist = list()
-        delay = {client: 0 for client in list_clients}
-        currentcycle = {node: 1 for node in graph.keys()}
-        for path in paths:
-            for item in paths[path]:
-                if(item != path):
-                    delay[path] += currentcycle[item]
-                    if ((bandwidthused[item] - currentcycle[item]) % bandwidths[item] == 0):
-                        currentcycle[item] += 1
-        print(delay)
-        #Find who will complain
-        complaintthreshold = {client: len(bfspaths[client]) * toleranceb[client] for client in list_clients}
-        for client in delay:
-            if delay[client] > complaintthreshold[client]:
-                complaintlist.append(client)
-        complaintlistsorted = sorted(complaintlist, key=lambda x: payments[x], reverse = True)
-        #Increase bandwidth for full nodes and for clients (lawsuit)
-        if len(complaintlist) >= len(list_clients) * plawsuit:
-            for client in complaintlistsorted:
-                i = 0
-                while delay[client] >= complaintthreshold[client] and i < len(paths[client]):
-                    if bandwidthused[paths[client][i]] > bandwidths[paths[client][i]] and paths[client][i] != client:
-                        bandwidths[paths[client][i]] += 1
-                        delay[client] -= 1
-                    i += 1
-                complaintlist.remove(client)
-        #Now calculated for fcc
-        if len(complaintlist) >= len(fcclist) * pfcc:
-            for client in complaintlistsorted:
-                i = 0
-                while delay[client] >= complaintthreshold[client] and i < len(paths[client]):
-                    if bandwidthused[paths[client][i]] > bandwidths[paths[client][i]] and paths[client][i] != client:
-                        bandwidths[paths[client][i]] += 1
-                        delay[client] -= 1
-                    i += 1
-                complaintlist.remove(client)
+        #Figure out potential max delay for each client
+        maxdelay = {client: 0 for client in list_clients}
+        ticks = {node: math.ceil(bandwidthused[node] / bandwidths[node]) for node in graph.keys()}
+        sortedclients = sorted(list_clients, key = lambda x: payments[x], reverse=True)
+        #Increase bandwidth for nodes that need it
+        for client in sortedclients:
+            maxdelay[client] = 0
+            for item in paths[client]:
+                maxdelay[client] += ticks[item]
+            for item in paths[client]:
+                if maxdelay[client] * toleranceb[client] >= len(bfspaths[client]) and ticks[item] > 1 and item != client:
+                    bandwidths[item] += 1
+                    ticks[item] = math.ceil(bandwidthused[item] / bandwidths[item])
         return (paths, bandwidths, priorities)
