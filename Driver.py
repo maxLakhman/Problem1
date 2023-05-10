@@ -14,7 +14,7 @@ class Driver:
         if len(sys.argv) < 2:
             print("Please provide the testcase filepath as a command line argument")
             return
-        self.problem = 3
+        self.problem = 4
         filename = sys.argv[1]
         utility = Utility(self.problem)
         input = utility.read_file(filename)
