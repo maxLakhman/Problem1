@@ -17,19 +17,19 @@ class Solution:
         #Initialize graph variables
         graph = self.graph
         isp = self.isp
-        graph_size = len(graph)
         list_clients = self.info["list_clients"]
         bandwidths = self.info["bandwidths"]
         is_rural = self.info["is_rural"]
+        toleranceb = self.info["betas"]
+        simulator = Simulator()
+        bfs_paths = simulator.local_bfs_path(graph, isp, list_clients)
         rural_list = list()
         non_rural_list = list()
         priorities = {node: 0 for node in list_clients}
         paths = {node: list() for node in list_clients}
-        weights = {node: 1 for node in graph}
         bandwidthused = {node: 0 for node in graph}
-        change = False
-        nochanges = False
-        loop = 0
+        payments = self.info["payments"]
+        priors = [-1] * len(graph)
 
         #Determine priority
         priority = 0
@@ -50,63 +50,37 @@ class Solution:
             priority_list.append(client)
         priority_list.reverse()
 
-        #Loops until valid paths are found
-        while not nochanges:
-            #Calculate paths using Dijkstra's Algorithm and BFS
-            unvisited = deque()
-            unvisited.append(isp)
-            previous = {node: -1 for node in graph}
-            while unvisited:
-                current = unvisited.popleft()
-                #Checks if all nodes are full
-                numfull = 0
-                if current != isp:
-                    for neighbor in graph[previous[current]]:
-                        if weights[neighbor] == float('inf'):
-                            numfull += 1
-                    #if they are then there are no valid paths and bandwidth must be increased
-                    if numfull == len(graph[previous[current]]):
-                        for neighbor in graph[previous[current]]:
-                            weights[neighbor] = 1
-                            bandwidths[neighbor] += 1
-                for neighbor in graph[current]:
-                    if previous[neighbor] == -1 and weights[current] == 1 and neighbor != isp:
-                        previous[neighbor] = current
-                        unvisited.append(neighbor)
-            for client in list_clients:
-                if len(paths[client]) < 2:
-                    path = []
-                    current_node = client
-                    while current_node != -1:
-                        path.append(current_node)
-                        if current_node != client:
-                            bandwidthused[current_node] += 1
-                        current_node = previous[current_node]
-                    path.reverse()
-                    paths[client] = path
-            #Checks if bandwidth has been exceeded
-            for node in bandwidthused:
-                if bandwidthused[node] > bandwidths[node]:
-                    index = 0
-                    while bandwidthused[node] > bandwidths[node] and index < len(priority_list):
-                        client = priority_list[index]
-                        if node != client and node in paths[client]:
-                            change = True
-                            for item in paths[client]:
-                                if item != client:
-                                    bandwidthused[item] -= 1
-                            paths[client] = []
-                        index += 1
-                    weights[node] = float('inf')
-            #Checks if all paths are valid
-            totalpaths = 0
-            for path in paths:
-                if len(paths[path]) > 1:
-                    totalpaths += 1
-            if totalpaths == len(list_clients):
-                nochanges = True
-            else:
-                nochanges = False
-            loop += 1
-        print(paths)
+        #BFS
+        search_queue = deque()
+        search_queue.append(isp)
+        while search_queue:
+            node = search_queue.popleft()
+            for neighbor in graph[node]:
+                if (priors[neighbor] == -1 and neighbor != isp):
+                    priors[neighbor] = node
+                    search_queue.append(neighbor)
+        #Calculate paths
+        for client in list_clients:
+            path = []
+            current_node = client
+            while (current_node != -1):
+                path.append(current_node)
+                if(current_node != client):
+                    bandwidthused[current_node] += 1
+                current_node = priors[current_node]
+            path = path[::-1]
+            paths[client] = path
+        #Figure out potential max delay for each client
+        maxdelay = {client: 0 for client in non_rural_list}
+        ticks = {node: math.ceil(bandwidthused[node] / bandwidths[node]) for node in graph.keys()}
+        sortedclients = sorted(rural_list, key = lambda x: payments[x], reverse=True)
+        #Increase bandwidth for nodes that need it
+        for client in sortedclients:
+            maxdelay[client] = 0
+            for item in paths[client]:
+                maxdelay[client] += ticks[item]
+            for item in paths[client]:
+                if maxdelay[client] * toleranceb[client] >= len(bfs_paths[client]) and ticks[item] > 1 and item != client:
+                    bandwidths[item] += 1
+                    ticks[item] = math.ceil(bandwidthused[item] / bandwidths[item])
         return (paths, bandwidths, priorities)
